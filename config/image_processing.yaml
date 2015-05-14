@@ -1,0 +1,6 @@
+surf_threshold: 100
+image_topic: '/uwsim/camera1'
+image_transport: 'raw'
+descriptors_topic: '/descriptors'
+keypoints_topic: '/image_keypoints'
+frames_to_jump: 5
