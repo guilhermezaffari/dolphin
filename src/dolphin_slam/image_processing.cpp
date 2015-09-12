@@ -138,7 +138,7 @@ bool ImageProcessing::init()
 
         cv::imwrite("sonar_mask.jpg",sonar_mask_);
     }
-
+//! Contrast Limited Adaptive Histogram Equalization
     clahe = cv::createCLAHE(2,cv::Size(16,16));
 
     if(parameters_.use_selected_images_){
@@ -340,7 +340,7 @@ void ImageProcessing::imageCallback(const sensor_msgs::ImageConstPtr &msg)
             publishImageKeypoints();
 
         }
-    }
+    }//If count=0;
 
     if(parameters_.frames_to_jump_)
         count = (count + 1)%parameters_.frames_to_jump_;

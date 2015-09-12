@@ -124,7 +124,7 @@ private:
     void getGroundTruth(tf2::Transform & gt_pose, ros::Time stamp);
 
     void getDeadReckoning(tf2::Transform & dr_pose, ros::Time stamp);
-
+void updateMap3();
     void updateMap2();
     void updateMap();
 

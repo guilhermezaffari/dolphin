@@ -31,7 +31,7 @@
 	<!-- local view node  -->
     <node pkg="dolphin_slam" type="local_view_node" name="local_view_node" required="true">
 		<param name="descriptors_topic" type="string" value="/descriptors" />
-        <param name="matching_algorithm" type="string" value="fabmap" />
+        <param name="matching_algorithm" type="string" value="correlation" />
 		<param name="fabmap_vocab" type="string" value="$(arg vocabulary_path)fabmap_vocab.xml" />		
 		<param name="fabmap_descriptors" type="string" value="$(arg vocabulary_path)fabmap_descriptors.xml"/>		
         <param name="fabmap_tree" type="string" value="$(arg vocabulary_path)fabmap_tree.xml" />
@@ -76,7 +76,6 @@
     <node name="rviz_pc" pkg="rviz" type="rviz" args="-d $(find dolphin_slam)/config/pose_cell.rviz"  respawn="false"/>
     <node name="rviz_em" pkg="rviz" type="rviz" args="-d $(find dolphin_slam)/config/experience_map.rviz" respawn="false"/>
 	<node name="image_view" pkg="image_view" type="image_view" args="image:=/image"  respawn="true"/>
-	
-	    <node name="template_view" pkg="template_view" type="template_view_node"/>
+	<node name="template_view" pkg="template_view" type="template_view_node"/>
 
 </launch>

@@ -72,7 +72,11 @@ add_message_files(
    ExperienceEvent.msg
    PlaceCellActivity.msg
    Error.msg
+   LocalViewNetwork.msg
    Descriptors.msg
+   LocalViewCell.msg
+   ImgMatchArray.msg
+   ImgMatch.msg
 )
 
 ## Generate services in the 'srv' folder

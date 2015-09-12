@@ -18,7 +18,6 @@ ExperienceMap::ExperienceMap(): tf_listener_(tf_buffer_), it_(node_handle_)
     number_of_created_experiences_ = 0;
 
     loadParameters();
-
     createROSPublishers();
 
     createROSSubscribers();
@@ -36,7 +35,6 @@ ExperienceMap::ExperienceMap(): tf_listener_(tf_buffer_), it_(node_handle_)
 
     filename = "experience_map_info.txt";
     experience_map_info_file_.open(filename.c_str());
-
 
     filename = "localization_error.txt";
     localization_error_file_.open(filename.c_str());
@@ -177,9 +175,10 @@ void ExperienceMap::computeActivationRate(const ExperienceEventConstPtr &event)
     int neurons0 =  event->pc_activity_.number_of_neurons_[0];
     int neurons1 =  event->pc_activity_.number_of_neurons_[1];
 
-    BOOST_FOREACH(ExperienceDescriptor exp, boost::vertices(map_)) {
+    BOOST_FOREACH(ExperienceDescriptor exp, boost::vertices(map_))
+    {
         exp_ptr = &map_[exp];
-
+///Calcula o indice através do indice da matriz 3D, calcula-se o indice linear de um vetor na memória, tipo isso
         index_pc = exp_ptr->pc_index_[0]*neurons0*neurons1 +
                 exp_ptr->pc_index_[1]*neurons1 +
                 exp_ptr->pc_index_[2];
@@ -251,7 +250,7 @@ void ExperienceMap::createExperience(const ExperienceEventConstPtr &event)
         //! Compute traveled distance since last experience
         translation = new_experience->dr_pose_.getOrigin() - current_experience->dr_pose_.getOrigin();
 
-        //! compute new pose based on traveled distance and last pose
+        //! compute new pose based on traveled distance and last pose ///ADICIONAR A TAXA DE ERRO POSSIVELMENTE AQUi.
         new_experience->pose_.setOrigin(current_experience->pose_.getOrigin() + translation);
         new_experience->pose_.setRotation(new_experience->dr_pose_.getRotation());
 
@@ -265,6 +264,7 @@ void ExperienceMap::createExperience(const ExperienceEventConstPtr &event)
 
     //! increase experience counter
     number_of_created_experiences_++;
+    //ROS_INFO("EXPERIENCIAS CRIADAS %i", number_of_created_experiences_);
 
     //! update current experience descriptor
     current_experience_descriptor_ = new_experience_descriptor;
@@ -368,12 +368,13 @@ void ExperienceMap::computeMatches()
     double best_similarity = 0;
 
     BOOST_FOREACH(ExperienceDescriptor exp, boost::vertices(map_)) {
-
+//Aqui ele compara as experiências mais antigas que o "fechar dos olhos (VER LAUNCH)".
         if (map_[current_experience_descriptor_].id_  - map_[exp].id_ > parameters_.min_experience_age_) {
+         //iguala a similaridade com a taxa total calculada a partir da soma ponderada de LV e PC que depende dos fatores setados no launch.
             similarity = map_[exp].rate_total_;
-
+        //se a similaridade for maior que o parametro do threshold
             if(similarity >= parameters_.match_threshold_)
-            {
+            {   //Experiencias maiores que o threshold são adicionadas no vetor matches.
                 matches.push_back(exp);
 
                 if(similarity > best_similarity)
@@ -384,18 +385,17 @@ void ExperienceMap::computeMatches()
             }
         }
     }
-
     //! change experience position
     if(best_match != -1)
     {
         ROS_DEBUG_STREAM("Match found: " << map_[matches[best_match]].id_ << " " << map_[current_experience_descriptor_].id_);
-
+        //Seleciona a melhor experiência entre as que passaram do valor setado no threshold
         best_match_experience_descriptor_ = matches[best_match];
-
+        //Calcula o erro através da posição de maior ativação menos a posição atual.
         current_error_ = map_[matches[best_match]].pose_.getOrigin() - map_[current_experience_descriptor_].pose_.getOrigin() ;
         //updateMap();
-
-        updateMap2();
+        //atualiza o mapa
+        updateMap3();
 
     }
 
@@ -490,7 +490,6 @@ void ExperienceMap::calculeDeadReckoningError()
 
 
 }
-
 void ExperienceMap::calculeExperienceMapError()
 {
     tf2::Vector3 point = map_[current_experience_descriptor_].pose_.getOrigin();
@@ -805,7 +804,7 @@ void ExperienceMap::publishError()
     error_publisher_.publish(message);
 }
 
-
+//Função para correção a partir do loop.
 void ExperienceMap::updateMap2()
 {
 
@@ -820,28 +819,29 @@ void ExperienceMap::updateMap2()
 
     while(exp_aux != current_experience_descriptor_)
     {
-
+        //função responsável por percorrer o mapa do valor com maior similaridade até a experiência atual.
         exp_aux = boost::target(*boost::out_edges(exp_aux,map_).first,map_);
+        //adiciona na rota, todo caminho percorrido do mais semelhante ate o atual.
         experience_route_.push_back(exp_aux);
     }
 
-
     ROS_DEBUG_STREAM("Map update:  current_error_ = " << current_error_.length());
 
+    //Calcula o erro entre a experiência atual e
     tf2::Vector3 delta_error = current_error_/(experience_route_.size()-1);
 
     for(int i=0;i<experience_route_.size()-1;i++)
     {
 
         BOOST_FOREACH(LinkDescriptor link, boost::out_edges(experience_route_[i],map_))
-        {
+        {//Encontra a próxima experiência do caminho, através da anterior. pega as arestas do experience_route
             if(experience_route_[i+1] == boost::target(link,map_))
             {
                 route = link;
                 break;
             }
         }
-
+    //Soma o erro de todas as experiencias entre o atual e os de fechamento de loop.
         map_[route].translation_ += delta_error;
 
         map_[experience_route_[i+1]].pose_.setOrigin(map_[experience_route_[i]].pose_.getOrigin() + map_[route].translation_);
@@ -853,6 +853,59 @@ void ExperienceMap::updateMap2()
     experience_route_.push_back(current_experience_descriptor_);
 
 }
+
+
+
+void ExperienceMap::updateMap3()
+{
+
+    LinkDescriptor route;
+
+
+    experience_route_.clear();
+
+    experience_route_.push_back(best_match_experience_descriptor_);
+
+    ExperienceDescriptor exp_aux = best_match_experience_descriptor_;
+
+    while(exp_aux != current_experience_descriptor_)
+    {
+        //função responsável por percorrer o mapa do valor com maior similaridade até a experiência atual.
+        exp_aux = boost::target(*boost::out_edges(exp_aux,map_).first,map_);
+        //adiciona na rota, todo caminho percorrido do mais semelhante ate o atual.
+        experience_route_.push_back(exp_aux);
+    }
+
+    ROS_DEBUG_STREAM("Map update:  current_error_ = " << current_error_.length());
+    tf2::Vector3 delta_error = current_error_/(experience_route_.size()-1);
+
+    //Calcula o erro entre a experiência atual e
+    for(int i=0;i<experience_route_.size()-1;i++)
+    {
+
+       BOOST_FOREACH(LinkDescriptor link, boost::out_edges(experience_route_[i],map_))
+       {//Encontra a próxima experiência do caminho, através da anterior. pega as arestas do experience_route
+           if(experience_route_[i+1] == boost::target(link,map_))
+           {
+              route = link;
+              break;
+           }
+       }
+    //Soma o erro de todas as experiencias entre o atual e os de fechamento de loop.
+        ROS_DEBUG_STREAM("Acr = " << i);
+        ROS_DEBUG_STREAM("Contador = " << (experience_route_.size()-1));
+       map_[route].translation_ += ((i+1)*delta_error)/(experience_route_.size()-1);
+
+        map_[experience_route_[i+1]].pose_.setOrigin(map_[experience_route_[i]].pose_.getOrigin() + map_[route].translation_);
+
+    }
+
+
+    experience_route_.clear();
+    experience_route_.push_back(current_experience_descriptor_);
+
+}
+
 
 /*!
  * \brief Iterate map to minimize errors after loop closure events
@@ -883,13 +936,8 @@ void ExperienceMap::updateMap()
         map_[experience_route_[i+1]].pose_.setOrigin(map_[experience_route_[i]].pose_.getOrigin() + map_[route].translation_);
 
     }
-
-
     experience_route_.clear();
     experience_route_.push_back(current_experience_descriptor_);
-
-
-
 
     //    cv::Point3f difference_i,difference_o;
     //    int ni,no;

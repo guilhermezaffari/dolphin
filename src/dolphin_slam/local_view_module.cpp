@@ -253,7 +253,7 @@ void LocalViewModule::computeCorrelations()
         {
             best_match = cell_iterator_;
         }
-    }
+    }//fim do for
 
     cout << endl;
 
@@ -293,8 +293,8 @@ void LocalViewModule::computeImgDescriptor(cv::Mat & descriptors)
     {
         bow_extractor_->compute(descriptors,bow_current_descriptor_);
     }
-
 }
+
 
 void LocalViewModule::publishActiveCells(){
 
@@ -329,7 +329,5 @@ void LocalViewModule::publishActiveCells(){
     active_cells_publisher_.publish(msg);
 
 }
-
-
 
 } //namespace
