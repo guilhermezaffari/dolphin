@@ -1,5 +1,6 @@
 #include "local_view_module.h"
-
+#include "dolphin_slam/ImgMatch.h"
+#include "dolphin_slam/ImgMatchArray.h"
 const float ROS_TIMER_STEP = 0.25;
 
 using std::endl;
@@ -10,10 +11,10 @@ namespace dolphin_slam
 
 LocalViewModule::LocalViewModule()
 {
-
+    ROS_DEBUG_STREAM("LOCALVIEW");
     metrics_.creation_count_ = 0;
     metrics_.recognition_count_ = 0;
-
+    matchs_others.reserve(7000);
     loadParameters();
 
     createROSSubscribers();
@@ -47,11 +48,17 @@ void LocalViewModule::loadParameters()
 
     private_nh.param<std::string>("bow_vocab",parameters_.bow_vocab_,"vocabulary.xml");
 
+    private_nh.param<std::string>("type_algorithm",parameters_.type_algorithm,"normal");
+
 }
 
 void LocalViewModule::createROSSubscribers()
 {
+
+     gt_loop_ = node_handle_.subscribe("/gt_loop",1,&LocalViewModule::gt_loop,this);
+
     descriptors_subscriber_ = node_handle_.subscribe(parameters_.descriptors_topic_,1,&LocalViewModule::descriptors_callback,this);
+
 }
 
 void LocalViewModule::createROSPublishers()
@@ -99,59 +106,125 @@ void LocalViewModule::timerCallback(const ros::TimerEvent& event)
 }
 
 
+void LocalViewModule::gt_loop(const dolphin_slam::ImgMatchArrayConstPtr &msg)
+{
+    if(parameters_.type_algorithm =="others"){
+
+        ROS_DEBUG_STREAM("1 srcID= " << msg->srcID );
+
+        /*imgMatch.resize(msg->match.size());
+       / for(unsigned i = 0 ; i < msg->match.size();i++)
+        {
+            imgMatch[i] = msg->match[i].dstID;
+        }*/
+
+       //Se vier um vetor de match, pega a primeira posição do vetor match
+        if(msg->match.size()>0)
+        {
+
+            gt_id_=msg->match[0].dstID;
+            ROS_DEBUG_STREAM("1 gt_id = " << gt_id_);
+            gt_src_=msg->srcID;
+        }
+        else
+        {
+            //Se não vier vetor, define a variável de gt_id
+            gt_id_=-1;
+        }
+
+        if(metrics_.creation_count_ == 0)
+        {
+            start_stamp_ = ros::Time::now();
+        }
+
+        time_monitor_.start();
+
+        last_best_match_id_ = best_match_id_;
+
+
+        //ESCREVER FUNçAO DE MATCH
+        computeMatches();
+
+        time_monitor_.finish();
+
+        publishActiveCells1();
+
+        //! Compute metrics
+        if(new_place_)
+        {
+            metrics_.creation_count_++;
+        }
+        else
+        {
+            if(best_match_id_ != last_best_match_id_)
+            {
+                metrics_.recognition_count_++;
+            }
+        }
+        metrics_.execution_time_ = time_monitor_.getDuration();
+
+        //writeLog();
+
+        publishExecutionTime();
+
+    }
+}
 
 void LocalViewModule::descriptors_callback(const DescriptorsConstPtr &msg)
 {
 
-
-    ROS_DEBUG_STREAM("Descriptors received. seq = " << msg->image_seq_ << " Number of descriptors = "  << msg->descriptor_count_);
-
-
-    if(metrics_.creation_count_ == 0)
+    if(parameters_.type_algorithm == "normal")
     {
-        start_stamp_ = ros::Time::now();
-    }
 
-    time_monitor_.start();
-
-    last_best_match_id_ = best_match_id_;
-
-    image_seq_ = msg->image_seq_;
-    image_stamp_ = msg->image_stamp_;
-
-    // Copy descriptors into a cv::Mat
-    cv::Mat_<float> descriptors(msg->descriptor_count_,msg->descriptor_length_);
-    std::copy(msg->data_.begin(),msg->data_.end(),descriptors.begin());
+        ROS_DEBUG_STREAM("NORMAL - Descriptors received. seq = " << msg->image_seq_ << " Number of descriptors = "  << msg->descriptor_count_);
 
 
-    computeImgDescriptor(descriptors);
-
-    cout << bow_current_descriptor_ << endl;
-
-    computeMatches();
-
-
-    time_monitor_.finish();
-
-    publishActiveCells();
-
-    //! Compute metrics
-    if(new_place_)
-    {
-        metrics_.creation_count_++;
-    }
-    else
-    {
-        if(best_match_id_ != last_best_match_id_)
+        if(metrics_.creation_count_ == 0)
         {
-            metrics_.recognition_count_++;
+            start_stamp_ = ros::Time::now();
         }
+
+        time_monitor_.start();
+
+        last_best_match_id_ = best_match_id_;
+
+        image_seq_ = msg->image_seq_;
+        image_stamp_ = msg->image_stamp_;
+
+        // Copy descriptors into a cv::Mat
+        cv::Mat_<float> descriptors(msg->descriptor_count_,msg->descriptor_length_);
+        std::copy(msg->data_.begin(),msg->data_.end(),descriptors.begin());
+
+
+        computeImgDescriptor(descriptors);
+
+        cout << bow_current_descriptor_ << endl;
+
+        computeMatches();
+
+
+        time_monitor_.finish();
+
+        publishActiveCells();
+
+        //! Compute metrics
+        if(new_place_)
+        {
+            metrics_.creation_count_++;
+        }
+        else
+        {
+            if(best_match_id_ != last_best_match_id_)
+            {
+                metrics_.recognition_count_++;
+            }
+        }
+        metrics_.execution_time_ = time_monitor_.getDuration();
+
+        writeLog();
+
+        publishExecutionTime();
     }
-    metrics_.execution_time_ = time_monitor_.getDuration();
-
-    writeLog();
-
-    publishExecutionTime();
 
 }
 
@@ -161,12 +234,20 @@ void  LocalViewModule::computeMatches()
     if (cells_.size() == 0)
     {
         new_place_ = true;
+        matchs_others.push_back(0);
     }
     else
     {
         if(parameters_.matching_algorithm_ == "correlation")
         {
-            computeCorrelations();
+            if(parameters_.type_algorithm == "normal")
+            {
+              computeCorrelations();
+            }
+            else if(parameters_.type_algorithm == "others")
+            {
+              computeCorrelations1();
+            }
         }
         else
         {
@@ -177,10 +258,15 @@ void  LocalViewModule::computeMatches()
 
     if(new_place_)
     {
-        createNewCell();
+        if(parameters_.type_algorithm == "normal")
+        {
+          createNewCell();
+        }
+        else if(parameters_.type_algorithm == "others")
+        {
+          createNewCell1();
+        }
     }
-
-
 }
 
 void LocalViewModule::writeLog()
@@ -226,36 +312,84 @@ void LocalViewModule::publishExecutionTime()
 
 }
 
+void LocalViewModule::computeCorrelations1()
+{
+    new_place_ = true;
+    std::vector<LocalViewCell>::iterator cell_iterator_;
+    std::vector<LocalViewCell>::iterator best_match;
+  //          best_match = cells_.begin();
+
+    if (gt_id_ == -1)
+    {
+       new_place_ = true;
+       matchs_others.push_back(cells_.size());
+      //ROS_DEBUG_STREAM("2 match[gt_src_] " << matchs_others[gt_src_]);
+    }
+
+    else
+    {
+        //ROS_DEBUG_STREAM("3 gt_id_ = " << gt_id_);
+        best_match = cells_.begin()+matchs_others[gt_id_];
+        new_place_ = false;
+        ROS_DEBUG_STREAM("3 best_match_id = " << best_match->id_);
+        matchs_others.push_back(matchs_others[gt_id_]);
+        for(int i=0; i < cells_.size(); i++)
+        {
+            cells_[i].active_ = false;
+            cells_[i].rate_ = 0;
+
+        }
+       cells_[matchs_others[gt_id_]].active_ = true;
+       cells_[matchs_others[gt_id_]].rate_ = 1;
+       ROS_DEBUG_STREAM("3 matchs_others[gt_src_] = " << matchs_others[gt_id_]);
+    }
+
+    if(!new_place_)
+    {
+        new_rate_ = 0;
+        best_match_id_ = best_match->id_;
+        // ROS_DEBUG_STREAM("4 Best_match_id = " << best_match_id_);
+        /* for (int j=0; j < gt_src_; j++)
+         {
+            ROS_DEBUG_STREAM("vetor[" << j << "] , valor = "<< matchs_others[j]);
+         }*/
+    }
+    else
+    {
+        new_rate_ = 1;
+    }
+}
 
 void LocalViewModule::computeCorrelations()
 {
     new_place_ = true;
-
     std::vector<LocalViewCell>::iterator cell_iterator_;
     std::vector<LocalViewCell>::iterator best_match;
     best_match = cells_.begin();
-    cout << "correlations ";
-    for(cell_iterator_ = cells_.begin();cell_iterator_!= cells_.end();cell_iterator_++)
-    {
-        cell_iterator_->rate_ = cv::compareHist(bow_descriptors_[cell_iterator_->id_],bow_current_descriptor_,CV_COMP_CORREL);
 
-        cout << cell_iterator_->rate_ << " " ;
-        //! test activation against a similarity threshold;
-        cell_iterator_->active_ = (cell_iterator_->rate_ > parameters_.similarity_threshold_);
 
-        if(cell_iterator_->active_)
+        cout << "correlations ";
+        for(cell_iterator_ = cells_.begin();cell_iterator_!= cells_.end();cell_iterator_++)
         {
-            new_place_ = false;
-        }
+            cell_iterator_->rate_ = cv::compareHist(bow_descriptors_[cell_iterator_->id_],bow_current_descriptor_,CV_COMP_CORREL);
 
-        //! compute best match
-        if(best_match->rate_ < cell_iterator_->rate_)
-        {
-            best_match = cell_iterator_;
-        }
-    }//fim do for
+            cout << cell_iterator_->rate_ << " " ;
+            //! test activation against a similarity threshold;
+            cell_iterator_->active_ = (cell_iterator_->rate_ > parameters_.similarity_threshold_);
 
-    cout << endl;
+            if(cell_iterator_->active_)
+            {
+                new_place_ = false;
+            }
+
+            //! compute best match
+            if(best_match->rate_ < cell_iterator_->rate_)
+            {
+                best_match = cell_iterator_;
+            }
+        }//fim do for
+
+        cout << endl;
 
     if(!new_place_)
     {
@@ -285,6 +419,23 @@ void LocalViewModule::createNewCell()
     cells_.push_back(new_cell);
 
 }
+
+void LocalViewModule::createNewCell1()
+{
+    LocalViewCell new_cell;
+
+    new_cell.id_ = cells_.size();
+    new_cell.rate_ = new_rate_;
+    new_cell.active_ = true;
+
+    best_match_id_ = new_cell.id_;
+
+    //bow_descriptors_.push_back(bow_current_descriptor_);
+
+    cells_.push_back(new_cell);
+
+}
+
 
 
 void LocalViewModule::computeImgDescriptor(cv::Mat & descriptors)
@@ -329,5 +480,40 @@ void LocalViewModule::publishActiveCells(){
     active_cells_publisher_.publish(msg);
 
 }
+
+void LocalViewModule::publishActiveCells1(){
+
+    ActiveLocalViewCells msg;
+
+    msg.header.stamp = ros::Time::now();
+
+    msg.image_seq_ = gt_src_;
+   msg.image_stamp_ = image_stamp_;
+
+    msg.most_active_cell_ = best_match_id_;
+
+    if(parameters_.matching_algorithm_ == "correlation")
+    {
+        log_file_rate_ << (ros::Time::now() - start_stamp_).toSec() << " ";
+
+        std::vector<LocalViewCell>::iterator cell_iterator_;
+        for(cell_iterator_ = cells_.begin();cell_iterator_!= cells_.end();cell_iterator_++)
+        {
+            if(cell_iterator_->active_)
+            {
+                msg.cell_id_.push_back(cell_iterator_->id_);
+                msg.cell_rate_.push_back(cell_iterator_->rate_);
+            }
+        }
+    }
+    else
+    {
+        ROS_ERROR_STREAM("Wrong matching algorithm: " << parameters_.matching_algorithm_);
+    }
+
+    active_cells_publisher_.publish(msg);
+
+}
+
 
 } //namespace

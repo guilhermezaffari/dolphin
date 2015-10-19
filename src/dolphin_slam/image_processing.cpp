@@ -79,7 +79,7 @@ void ImageProcessing::createROSSubscribers()
 
         //! hint to modify the image_transport. Here I use raw transport
         image_transport::TransportHints hints(parameters_.image_transport_,ros::TransportHints(),node_handle_);
-
+        ROS_DEBUG_STREAM("CAM SUBSCRIBER");
         //! image subscription
         image_subscriber_ = it_.subscribe(parameters_.image_topic_,1,&ImageProcessing::imageCallback,this,hints);
 
@@ -101,16 +101,20 @@ void ImageProcessing::createROSSubscribers()
 
 void ImageProcessing::createROSPublishers()
 {
-
+    ROS_DEBUG_STREAM("ROS PUBLISHERS");
     image_publisher_ = it_.advertise(parameters_.image_keypoints_topic_, 1);
 
     descriptors_publisher_ = node_handle_.advertise<dolphin_slam::Descriptors>(parameters_.descriptors_topic_, 100);
+
 
 }
 
 void ImageProcessing::createROSServices()
 {
+    ROS_DEBUG_STREAM("ROS ServiceS");
     image_service = node_handle_.advertiseService("image_request",&ImageProcessing::imageRequest,this);
+
+
 }
 
 
@@ -121,6 +125,7 @@ bool ImageProcessing::init()
 
     if(parameters_.source_ == "camera")
     {
+        ROS_DEBUG_STREAM("CAMERA init");
         surf_ = new cv::SURF(parameters_.surf_threshold_);
         gftt_ = new cv::GFTTDetector(800,0.01,15,3,true);
         sift_ = new cv::SIFT();
@@ -183,7 +188,7 @@ void ImageProcessing::publishImageKeypoints()
     cv::drawKeypoints(image_->image,keypoints_,image_keypoints.image);
 
     image_publisher_.publish(image_keypoints.toImageMsg());
-
+    ROS_DEBUG_STREAM("PublishImageKeypoints");
 }
 
 
@@ -202,9 +207,9 @@ void ImageProcessing::publishDescriptors()
     msg.descriptor_length_ = descriptors_.cols;
     msg.data_.resize(descriptors_.rows*descriptors_.cols);
 
-    std::copy(descriptors_.begin<float>(),descriptors_.end<float>(),msg.data_.begin());
+    std::copy(descriptors_.begin<float>(),descriptors_.end<float>(),msg.data_.begin());    
     descriptors_publisher_.publish(msg);
-
+ROS_DEBUG_STREAM("PublishDescriptors");
 }
 
 
@@ -240,19 +245,17 @@ void ImageProcessing::imageCallback(const sensor_msgs::ImageConstPtr &msg)
             return;
     }
 
-    if (count == 0){
+    if (count == 0)
+    {
         if(parameters_.source_ == "camera")
         {
 
             ROS_DEBUG_STREAM("Image received. seq = " << msg->header.seq);
             image_ = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::MONO8);
 
-
-
-
             if(parameters_.image_detector_ == "surf")
             {
-
+                ROS_DEBUG_STREAM("Surf");
                 //clahe->apply(image_->image,image_->image);
 
                 //! Detect SURF keypoints in the image
@@ -265,7 +268,7 @@ void ImageProcessing::imageCallback(const sensor_msgs::ImageConstPtr &msg)
             }
             else if (parameters_.image_detector_ == "gftt")
             {
-
+                //ROS_DEBUG_STREAM("gftt");
                // clahe->apply(image_->image,image_->image);
 
 
@@ -274,13 +277,15 @@ void ImageProcessing::imageCallback(const sensor_msgs::ImageConstPtr &msg)
                 sift_->compute(image_->image,keypoints_,descriptors_);
             }
 
-            ROS_DEBUG_STREAM("Number of SURF keypoints: " << keypoints_.size());
+            //ROS_DEBUG_STREAM("Number of SURF keypoints: " << keypoints_.size());
 
             image_buffer_.push(make_pair(msg->header.seq,image_->image));
 
             publishDescriptors();
-
+            ROS_DEBUG_STREAM("CAMERA publ");
             publishImageKeypoints();
+            ROS_DEBUG_STREAM("CAMERA imagekey");
+
 
         }
         else if(parameters_.source_ == "sonar")
@@ -344,6 +349,8 @@ void ImageProcessing::imageCallback(const sensor_msgs::ImageConstPtr &msg)
 
     if(parameters_.frames_to_jump_)
         count = (count + 1)%parameters_.frames_to_jump_;
+
+    //ROS_DEBUG_STREAM("Image received. seq = "<< count);
 }
 
 bool ImageProcessing::computeShapeDescriptors(cv::Mat &image)
@@ -408,6 +415,7 @@ bool ImageProcessing::computeShapeDescriptors(cv::Mat &image)
 bool ImageProcessing::imageRequest(dolphin_slam::ImageRequest::Request  &req,
                                    dolphin_slam::ImageRequest::Response &res)
 {
+    ROS_DEBUG_STREAM("IMAGE REQUEST");
 
     cv_bridge::CvImage image_response;
     std::pair <int,cv::Mat> next_element;

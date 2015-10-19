@@ -131,7 +131,7 @@ void RobotState::dvlCallback(const underwater_sensor_msgs::DVLConstPtr &message)
     tf_broadcaster_.sendTransform(msg);
 
 
-    ROS_DEBUG_STREAM("DVL Velocity = [" << message->bi_x_axis << " " << message->bi_y_axis  << " " << message->bi_z_axis  << " ] " << "elapsed_time = " << elapsed_time);
+    //ROS_DEBUG_STREAM("DVL Velocity = [" << message->bi_x_axis << " " << message->bi_y_axis  << " " << message->bi_z_axis  << " ] " << "elapsed_time = " << elapsed_time);
 
 
 }
@@ -181,12 +181,31 @@ void RobotState::groundTruthCallback(const ros::TimerEvent &event)
     else
     {
         gt_pose_ = getTransform(msg);
-
+       /* Testar a primeira transformaçãoSSSS
+        * char cMs1[400];
+        sprintf(cMs1,"getTransform Pose = (%lf , %lf,%lf)",gt_pose_.getOrigin().x(),gt_pose_.getOrigin().y(),gt_pose_.getOrigin().z());
+        ROS_DEBUG_STREAM(cMs1);*/
         gt_pose_ = gt_pose_origin_.inverseTimes(gt_pose_);
+        /* Postar InverseTimes
+        sprintf(cMs1,"InverseTimes Pose = (%lf , %lf,%lf)",gt_pose_.getOrigin().x(),gt_pose_.getOrigin().y(),gt_pose_.getOrigin().z());
+        ROS_DEBUG_STREAM(cMs1);
+        */
     }
 
-    msg = createTransformStamped(gt_pose_,msg.header.stamp,"world","dolphin_slam/gt");
+    /* Imprime a pose e rotação  inicial
+    char cMs2[400];
+        sprintf(cMs2,"Inicial Pose= (%lf , %lf,%lf)",gt_pose_origin_.getOrigin().x(),gt_pose_origin_.getOrigin().y(),gt_pose_origin_.getOrigin().z());
+        ROS_DEBUG_STREAM(cMs2);
+        sprintf(cMs2,"Rotatio Pose= (%lf , %lf,%lf, %lf)",gt_pose_origin_.getRotation().getW() ,gt_pose_origin_.getRotation().getY(),gt_pose_origin_.getRotation().getX(),gt_pose_origin_.getRotation().getZ());
+        ROS_DEBUG_STREAM(cMs2);
+    */
 
+    msg = createTransformStamped(gt_pose_,msg.header.stamp,"world","dolphin_slam/gt");
+    /* Publica o Ground Thruth
+    char cMs[400];
+    sprintf(cMs,"GROUND THRUTH = (%lf , %lf,%lf)",gt_pose_.getOrigin().x(),gt_pose_.getOrigin().y(),gt_pose_.getOrigin().z());
+    ROS_DEBUG_STREAM(cMs);
+     */
     tf_broadcaster_.sendTransform(msg);
 
 }

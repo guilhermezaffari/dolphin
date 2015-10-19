@@ -30,6 +30,8 @@
     <node pkg="dolphin_slam" type="local_view_node" name="local_view_node" required="true">
 		<param name="descriptors_topic" type="string" value="/descriptors" />
 		<param name="matching_algorithm" type="string" value="correlation" />		
+<!-- value = normal, compara histograma, value = others, método para comparar pelo id das imagens -->
+<param name="type_algorithm" type="string" value="normal" />
 		<param name="fabmap_vocab" type="string" value="$(arg vocabulary_path)fabmap_vocab.xml" />		
 		<param name="fabmap_descriptors" type="string" value="$(arg vocabulary_path)fabmap_descriptors.xml"/>		
 		<param name="fabmap_tree" type="string" value="$(arg vocabulary_path)fabmap_tree.xml" />
@@ -78,3 +80,4 @@
     <node name="template_view" pkg="template_view" type="template_view_node"/>
 
 </launch>
+

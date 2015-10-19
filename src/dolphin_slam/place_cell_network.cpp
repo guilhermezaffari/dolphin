@@ -202,7 +202,7 @@ void PlaceCellNetwork::normalizeRecurrentExcitatoryWeights()
 
     normalization_factor = std::accumulate(aux_neurons_.begin(),aux_neurons_.end(),0.0f);
 
-    ROS_DEBUG_STREAM_NAMED("pc","Excitatory Weights Normalization Factor = " << normalization_factor);
+  //  ROS_DEBUG_STREAM_NAMED("pc","Excitatory Weights Normalization Factor = " << normalization_factor);
 
     recurrent_excitatory_weights_ /= normalization_factor;
 
@@ -232,7 +232,7 @@ void PlaceCellNetwork::localViewCallback(const ActiveLocalViewCellsConstPtr &mes
 
     experience_event_ = (most_active_lv_cell_ != message->most_active_cell_);
 
-    ROS_DEBUG_STREAM("Experience event = " << experience_event_ << " Most active LVC = " << message->most_active_cell_);
+   ROS_DEBUG_STREAM("Experience event = " << experience_event_ << " Most active LVC = " << message->most_active_cell_);
 
 
     //! atualiza a local view mais ativa no momento
@@ -244,6 +244,7 @@ void PlaceCellNetwork::localViewCallback(const ActiveLocalViewCellsConstPtr &mes
         lv_cells_active_[i].id_ = message->cell_id_[i];
         lv_cells_active_[i].rate_= message->cell_rate_[i];
         lv_cells_active_[i].active_= true;
+        //ROS_DEBUG_STREAM("Local View ID = " << lv_cells_active_[i].id_ << " Local View rate_ =" << lv_cells_active_[i].rate_ << "Local View Active =" << lv_cells_active_[i].active_);
     }
 
 
@@ -329,7 +330,7 @@ void PlaceCellNetwork::update()
 
     time_monitor_.finish();
 
-    ROS_DEBUG_STREAM_NAMED("pc","Duration of update function = " << time_monitor_.getDuration() << "s");
+    //ROS_DEBUG_STREAM_NAMED("pc","Duration of update function = " << time_monitor_.getDuration() << "s");
     publishExecutionTime();
 
 }
@@ -463,7 +464,7 @@ void PlaceCellNetwork::excite()
 
 
     time_monitor_.finish();
-    ROS_DEBUG_STREAM("Excite duration " << time_monitor_.getDuration() << "s");
+    //ROS_DEBUG_STREAM("Excite duration " << time_monitor_.getDuration() << "s");
 }
 
 void PlaceCellNetwork::externalInput()
@@ -482,7 +483,7 @@ void PlaceCellNetwork::externalInput()
             local_view_age = lv_cell_count_ - lv_cells_active_[lvc].id_;
 
             if(local_view_age >= parameters_.min_input_age_){
-                ROS_DEBUG_STREAM("Local view cell age = " << local_view_age);
+               // ROS_DEBUG_STREAM("Local view cell age = " << local_view_age);
                 //! apply external inputs
                 neurons_ +=lv_cells_active_[lvc].rate_ *
                         local_view_synaptic_weights_[lv_cells_active_[lvc].id_];
@@ -495,7 +496,7 @@ void PlaceCellNetwork::externalInput()
         local_view_age = lv_cell_count_ - most_active_lv_cell_;
 
         if(local_view_age >= parameters_.min_input_age_){
-            ROS_DEBUG_STREAM("Local view cell age = " << local_view_age);
+            //ROS_DEBUG_STREAM("Local view cell age = " << local_view_age);
 
             //! apply external inputs
             std::cout << local_view_synaptic_weights_.size() << "- SYNAPTIC WEIGHTS SIZE" << std::endl;
@@ -740,9 +741,9 @@ void PlaceCellNetwork::pathIntegration()
     //! Get traveled distance from tf
     getTraveledDistance(delta_x,delta_y,delta_z);
 
-    ROS_DEBUG_STREAM("Path Integration: [" << std::setw(6) << delta_x << ", " << std::setw(6) << delta_y << ", "
+ /*   ROS_DEBUG_STREAM("Path Integration: [" << std::setw(6) << delta_x << ", " << std::setw(6) << delta_y << ", "
                      << std::setw(6) << delta_z << " ]" );
-
+*/
     integrateX(delta_x);
     integrateY(delta_y);
     integrateZ(delta_z);
@@ -906,9 +907,9 @@ double PlaceCellNetwork::getActiveNeuron(std::vector<int> &active_neuron)
 
     }
 
-    ROS_DEBUG_STREAM_NAMED("pc","max activity = " << max_activity << " or " << *std::max_element(neurons_.begin(),neurons_.end())
+  /*  ROS_DEBUG_STREAM_NAMED("pc","max activity = " << max_activity << " or " << *std::max_element(neurons_.begin(),neurons_.end())
                            << "neuron = " << active_neuron[0] << " " <<  active_neuron[1] << " " << active_neuron[2]  );
-
+*/
     return max_activity;
 
 }

@@ -4,7 +4,7 @@
     <env name="ROSCONSOLE_CONFIG_FILE" value="$(find dolphin_slam)/config/custom_rosconsole.conf"/>
 
 	<!-- Name of bag file -->
-    <arg name="bagfile" default="/home/gzaffari/catkin_ws/src/dolphin/Bags/yatch_cortado_novo.bag"/>
+    <arg name="bagfile" default="/home/gzaffari/catkin_ws/src/dolphin/Bags/yatch_cortado_12_09_2015.bag"/>
 
 	<!-- Vocabulary path. The path must end with an "/" -->
     <arg name="vocabulary_path" value ="$(find dolphin_slam)/experiments/yatch/training/"/>
@@ -12,7 +12,7 @@
     <param name="/use_sim_time" type="bool" value="true" />
 
 	<!-- Play messages from bagfile -->
-    <node pkg="rosbag" type="play" name="play" args="$(arg bagfile) -q --clock" required="false"/>
+    <node pkg="rosbag" type="play" name="play" args="$(arg bagfile) -q --clock -r 9" required="false"/>
 	
     <!-- process images to extract surf keypoints -->
     <node pkg="dolphin_slam" type="image_processing_node" name="image_processing_node" required="true">
@@ -34,7 +34,11 @@
 		<param name="descriptors_topic" type="string" value="/descriptors" />
 		
 <!-- PARA MUDAR PARA O FABMAP, MODIFICAR ONDE ESTA ESCRITO correlation para fabmap -->
-<param name="matching_algorithm" type="string" value="correlation" />		
+<param name="matching_algorithm" type="string" value="correlation" />	
+
+<!-- value = normal, compara histograma, value = others, método para comparar pelo id das imagens -->
+<param name="type_algorithm" type="string" value="others" />
+	
 		<param name="fabmap_vocab" type="string" value="$(arg vocabulary_path)fabmap_vocab.xml" />		
 		<param name="fabmap_descriptors" type="string" value="$(arg vocabulary_path)fabmap_descriptors.xml"/>		
 		<param name="fabmap_tree" type="string" value="$(arg vocabulary_path)fabmap_tree.xml" />
@@ -70,8 +74,8 @@
 
     <node name="experience_map_node" pkg="dolphin_slam" type="experience_map_node" required="true">
         <param name="match_threshold" type="double" value="0.75" />
-        <param name="lv_factor" type="double" value="0.5" />
-        <param name="pc_factor" type="double" value="0.5" />
+        <param name="lv_factor" type="double" value="0.65" />
+        <param name="pc_factor" type="double" value="0.35" />
         <param name="min_experience_age" type="int" value="50" />
         <param name="focal_lenght" type="double" value="1501.2" />
     </node>
@@ -80,7 +84,7 @@
     <node name="rviz_pc" pkg="rviz" type="rviz" args="-d $(find dolphin_slam)/config/pose_cell.rviz"  respawn="false"/>
     <node name="rviz_em" pkg="rviz" type="rviz" args="-d $(find dolphin_slam)/config/experience_map.rviz" respawn="false"/>
     <node pkg="image_view" type="image_view" name="keypoints_view" args="image:=/image_keypoints" respawn="false"/>
-
-     
+	   
+         <node name="template_view" pkg="template_view" type="template_view_node"/>
 
 </launch>

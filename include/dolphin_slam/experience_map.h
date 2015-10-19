@@ -81,6 +81,12 @@ typedef boost::graph_traits<Map>::edge_descriptor LinkDescriptor;
 //! Experience iterator
 typedef boost::graph_traits<Map>::vertex_iterator ExperienceIterator;
 
+//! In edge
+typedef boost::graph_traits<Map>::in_edge_iterator edge_in;
+
+//! Out edge
+typedef boost::graph_traits<Map>::out_edge_iterator edge_out;
+
 typedef std::pair <LinkDescriptor,bool> ResultOfLinkCreation;
 
 
@@ -119,14 +125,18 @@ private:
 
     void computeMatches();
 
+    void computeMatches1();
+
     void getImage(cv::Mat &image, int seq);
 
     void getGroundTruth(tf2::Transform & gt_pose, ros::Time stamp);
 
     void getDeadReckoning(tf2::Transform & dr_pose, ros::Time stamp);
-void updateMap3();
+    void updateMap4();
+    void updateMap3();
     void updateMap2();
     void updateMap();
+
 
     void calculeExperienceMapError();
     void calculeDeadReckoningError();

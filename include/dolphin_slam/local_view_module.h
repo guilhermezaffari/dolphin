@@ -19,7 +19,8 @@
 #include <string>
 
 #include <boost/foreach.hpp>
-
+#include "dolphin_slam/ImgMatch.h"
+#include "dolphin_slam/ImgMatchArray.h"
 #include <fstream>
 #include <time_monitor/time_monitor.h>
 
@@ -37,6 +38,7 @@ struct LocalViewParameters
     std::string matching_algorithm_;
     std::string bow_vocab_;
     std::string descriptors_topic_;
+    std::string type_algorithm;
 
 };
 
@@ -75,16 +77,17 @@ private:
     //! ROS related functions
     void descriptors_callback(const dolphin_slam::DescriptorsConstPtr &msg);
     void createNewCell();
+    void createNewCell1();
     void publishExecutionTime();
     void publishActiveCells();
-
+    void publishActiveCells1();
     void writeLog();
-
+    void gt_loop(const dolphin_slam::ImgMatchArrayConstPtr &msg);
     void timerCallback(const ros::TimerEvent &event);
 
     void computeMatches();
     void computeCorrelations();
-
+    void computeCorrelations1();
     void computeImgDescriptor(cv::Mat &descriptors);
     void compare();
 
@@ -100,11 +103,14 @@ private:
     cv::Mat bow_current_descriptor_;
     std::vector<cv::Mat> bow_descriptors_;
     std::vector<LocalViewCell> cells_;
+    std::vector<int> matchs_others;
+    //std::vector<int> imgMatch;
     bool new_place_;
 
     double new_rate_;
     int best_match_id_;
-
+    int gt_id_;
+    int gt_src_;
     int last_best_match_id_;
 
     int image_seq_;
@@ -112,6 +118,7 @@ private:
 
     ros::NodeHandle node_handle_;
     ros::Subscriber descriptors_subscriber_;
+    ros::Subscriber gt_loop_;
     ros::Publisher active_cells_publisher_;
     ros::Publisher execution_time_publisher_;
 
